@@ -3,32 +3,49 @@ import { render, screen, act } from '@testing-library/react';
 import { ThemeProvider, useTheme } from '@/contexts/ThemeContext';
 import userEvent from '@testing-library/user-event';
 
+interface MockMediaQueryList extends MediaQueryList {
+  triggerChange: (newMatches: boolean) => void;
+}
+
 // Mock matchMedia
 const mockMatchMedia = (matches: boolean) => {
-  let changeListener: ((e: any) => void) | null = null;
-  const mediaQueryList = {
+  let changeListener: EventListenerOrEventListenerObject | null = null;
+  const state = {
     matches,
-    media: '',
+    media: ''
+  };
+
+  const mediaQueryList = {
+    get matches() {
+      return state.matches;
+    },
+    get media() {
+      return state.media;
+    },
     onchange: null,
     addListener: jest.fn(), // Deprecated
     removeListener: jest.fn(), // Deprecated
-    addEventListener: jest.fn((event, listener) => {
+    addEventListener: jest.fn((event: string, listener: EventListenerOrEventListenerObject) => {
       if (event === 'change') changeListener = listener;
     }),
-    removeEventListener: jest.fn((event, listener) => {
+    removeEventListener: jest.fn((event: string, listener: EventListenerOrEventListenerObject) => {
       if (event === 'change' && changeListener === listener) changeListener = null;
     }),
     dispatchEvent: jest.fn(),
-    _triggerChange: (newMatches: boolean) => {
-      mediaQueryList.matches = newMatches;
+    triggerChange: (newMatches: boolean) => {
+      state.matches = newMatches;
       if (changeListener) {
-        changeListener({ matches: newMatches } as any);
+        if (typeof changeListener === 'function') {
+          changeListener({ matches: newMatches } as any);
+        } else {
+          changeListener.handleEvent({ matches: newMatches } as any);
+        }
       }
     }
-  };
+  } as MockMediaQueryList;
 
   return jest.fn().mockImplementation(query => {
-    mediaQueryList.media = query;
+    state.media = query;
     return mediaQueryList;
   });
 };
@@ -126,7 +143,8 @@ describe('ThemeContext', () => {
     expect(screen.getByTestId('resolved').textContent).toBe('light');
 
     act(() => {
-      window.matchMedia('(prefers-color-scheme: dark)')._triggerChange(true);
+      const mediaQueryList = window.matchMedia('(prefers-color-scheme: dark)') as MockMediaQueryList;
+      mediaQueryList.triggerChange(true);
       jest.advanceTimersByTime(100);
     });
 
