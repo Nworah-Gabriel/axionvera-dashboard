@@ -6,7 +6,7 @@ import { TransactionSkeleton } from "./Skeletons";
 
 type TransactionHistoryProps = {
   isConnected: boolean;
-  address: string | null;
+  publicKey: string | null;
   isLoading: boolean;
   transactions: VaultTx[];
   onClaimRewards: () => Promise<void>;
@@ -54,7 +54,7 @@ const selectClassName =
 
 export default function TransactionHistory({
   isConnected,
-  address,
+  publicKey,
   isLoading,
   transactions,
   onClaimRewards,
@@ -107,7 +107,7 @@ export default function TransactionHistory({
         <div>
           <div className="text-sm font-semibold text-text-primary">Transaction history</div>
           <div className="mt-1 text-xs text-text-muted">
-            {isConnected && address ? `Recent vault activity for ${shortenAddress(address, 6)}` : "Connect a wallet to view history."}
+            {isConnected && publicKey ? `Recent vault activity for ${shortenAddress(publicKey, 6)}` : "Connect a wallet to view history."}
           </div>
         </div>
         <button

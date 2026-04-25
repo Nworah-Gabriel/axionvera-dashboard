@@ -5,7 +5,7 @@ import { GLOSSARY } from "@/utils/glossary";
 
 type BalanceCardProps = {
   isConnected: boolean;
-  address: string | null;
+  publicKey: string | null;
   balance: string;
   rewards: string;
   isLoading: boolean;
@@ -15,7 +15,7 @@ type BalanceCardProps = {
 
 export default function BalanceCard({
   isConnected,
-  address,
+  publicKey,
   balance,
   rewards,
   isLoading,
@@ -30,7 +30,7 @@ export default function BalanceCard({
         <div>
           <div className="text-sm font-semibold text-text-primary">Vault balance</div>
           <div className="mt-1 text-xs text-text-muted">
-            {isConnected && address ? `Wallet: ${shortenAddress(address, 6)}` : "Connect a wallet to view balances."}
+            {isConnected && publicKey ? `Wallet: ${shortenAddress(publicKey, 6)}` : "Connect a wallet to view balances."}
           </div>
         </div>
         <button

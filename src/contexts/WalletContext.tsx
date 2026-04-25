@@ -23,6 +23,7 @@ type WalletState = {
 
 interface WalletContextType {
   address: string | null;
+  publicKey: string | null; // Alias for acceptance criteria
   network: StellarNetwork;
   balance: string | null;
   isConnected: boolean;
@@ -283,6 +284,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const value = useMemo<WalletContextType>(
     () => ({
       address: state.address,
+      publicKey: state.address, // Expose publicKey as alias for address
       network: state.network,
       balance: state.balance,
       isConnected,
@@ -310,10 +312,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   );
 }
 
-export function useWallet() {
+export function useWalletContext() {
   const context = useContext(WalletContext);
   if (context === undefined) {
     throw new Error("useWallet must be used within a WalletProvider");
   }
   return context;
 }
+
+// Keep useWallet as a deprecated alias to facilitate refactoring
+/** @deprecated Use useWalletContext instead */
+export const useWallet = useWalletContext;
