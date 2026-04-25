@@ -7,7 +7,7 @@ import { shortenAddress } from '@/utils/contractHelpers';
 import { AppTooltip } from './AppTooltip';
 import { GLOSSARY } from '@/utils/glossary';
 import { useState } from "react";
-import ConfirmTransactionModal from "./ConfirmTransactionModal";
+import ConfirmTransactionModal from '@/components/modals/ConfirmTransactionModal';
 
 type DepositFormProps = {
   isConnected: boolean;
@@ -18,9 +18,6 @@ type DepositFormProps = {
   transactionHash?: string | null;
 };
 
-const [isModalOpen, setIsModalOpen] = useState(false);
-const [pendingAmount, setPendingAmount] = useState<string | null>(null);
-
 export default function DepositForm({
   isConnected,
   isSubmitting,
@@ -29,6 +26,10 @@ export default function DepositForm({
   statusMessage,
   transactionHash
 }: DepositFormProps) {
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingAmount, setPendingAmount] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,

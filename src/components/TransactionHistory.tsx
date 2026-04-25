@@ -3,6 +3,7 @@ import { formatAmount, shortenAddress } from "@/utils/contractHelpers";
 import type { VaultTx, VaultTxType, VaultTxStatus } from "@/utils/contractHelpers";
 import CopyButton from "./CopyButton";
 import { TransactionSkeleton } from "./Skeletons";
+import ConfirmTransactionModal from '@/components/modals/ConfirmTransactionModal';
 
 type TransactionHistoryProps = {
   isConnected: boolean;
@@ -215,6 +216,7 @@ export default function TransactionHistory({
                   <span className="text-text-muted">{new Date(tx.createdAt).toLocaleString()}</span>
                 </div>
                 {tx.hash ? <div className="text-xs text-text-muted">Hash: {shortenAddress(tx.hash, 8)}</div> : null}
+              </div>
               </article>
             ))
           )}

@@ -5,7 +5,7 @@ import { createWithdrawSchema, WithdrawFormData } from '@/utils/validation';
 import { notify } from '@/utils/notifications';
 import { formatAmount, shortenAddress } from '@/utils/contractHelpers';
 import { useState } from 'react';
-import ConfirmTransactionModal from './ConfirmTransactionModal';
+import ConfirmTransactionModal from '@/components/modals/ConfirmTransactionModal';
 
 type WithdrawFormProps = {
   isConnected: boolean;
@@ -26,6 +26,10 @@ export default function WithdrawForm({
   statusMessage,
   transactionHash
 }: WithdrawFormProps) {
+
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [pendingAmount, setPendingAmount] = useState<string | null>(null);
+
   const {
     register,
     handleSubmit,
@@ -38,9 +42,6 @@ export default function WithdrawForm({
       amount: '' as any,
     }
   });
-
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [pendingAmount, setPendingAmount] = useState<string | null>(null);
 
   const onSubmit = async (data: WithdrawFormData) => {
     setPendingAmount(data.amount.toString());
