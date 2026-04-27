@@ -9,6 +9,7 @@ import {
   type TransactionSimulation
 } from "@/utils/contractHelpers";
 import { NETWORK } from "@/utils/networkConfig";
+import { scvI128ToString, extractSimulationError } from "@/utils/xdrParser";
 
 type UseVaultArgs = {
   walletAddress: string | null;
@@ -57,7 +58,12 @@ const INITIAL_STATE: VaultState = {
 };
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  if (error instanceof Error) return error.message;
+  if (error !== null && typeof error === "object") {
+    const simError = extractSimulationError(error as { error?: string });
+    if (simError) return simError;
+  }
+  return fallback;
 }
 
 function createPendingTransaction(type: VaultActionType, amount: string): VaultTx {
@@ -128,8 +134,8 @@ export function useVault({ walletAddress, sdk: providedSdk }: UseVaultArgs) {
 
       setState((current) => ({
         ...current,
-        balance: balances.balance,
-        rewards: balances.rewards,
+        balance: scvI128ToString(balances.balance) ?? balances.balance,
+        rewards: scvI128ToString(balances.rewards) ?? balances.rewards,
         transactions,
         isLoading: false
       }));
