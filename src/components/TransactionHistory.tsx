@@ -8,6 +8,31 @@ import type {
 import CopyButton from "./CopyButton";
 import { TransactionSkeleton } from "./Skeletons";
 
+// Simple Popover component inline to avoid adding dependencies
+function FilterPopover({
+  children,
+  isOpen,
+  onClose
+}: {
+  children: React.ReactNode;
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  if (!isOpen) return null;
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      <div className="absolute right-0 top-full z-50 mt-2 w-72 rounded-xl border border-border-primary bg-background-primary p-4 shadow-lg">
+        {children}
+      </div>
+    </>
+  );
+}
+
 type TransactionHistoryProps = {
   isConnected: boolean;
   publicKey: string | null;
@@ -68,16 +93,32 @@ export default function TransactionHistory({
 }: TransactionHistoryProps) {
   const [typeFilter, setTypeFilter] = useState<TypeFilter>("all");
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
+  const [startDate, setStartDate] = useState<string>("");
+  const [endDate, setEndDate] = useState<string>("");
   const [sortKey, setSortKey] = useState<SortKey>("createdAt");
   const [sortDirection, setSortDirection] = useState<SortDirection>("desc");
+  const [isFilterOpen, setIsFilterOpen] = useState(false);
 
   const filteredTransactions = useMemo(() => {
     return transactions.filter((tx) => {
       if (typeFilter !== "all" && tx.type !== typeFilter) return false;
       if (statusFilter !== "all" && tx.status !== statusFilter) return false;
+
+      const txDate = new Date(tx.createdAt).getTime();
+
+      if (startDate) {
+        const startTime = new Date(startDate).setHours(0, 0, 0, 0);
+        if (txDate < startTime) return false;
+      }
+
+      if (endDate) {
+        const endTime = new Date(endDate).setHours(23, 59, 59, 999);
+        if (txDate > endTime) return false;
+      }
+
       return true;
     });
-  }, [transactions, typeFilter, statusFilter]);
+  }, [transactions, typeFilter, statusFilter, startDate, endDate]);
 
   const sortedTransactions = useMemo(() => {
     const sorted = [...filteredTransactions];
@@ -95,7 +136,7 @@ export default function TransactionHistory({
     return sorted;
   }, [filteredTransactions, sortKey, sortDirection]);
 
-  const hasActiveFilter = typeFilter !== "all" || statusFilter !== "all";
+  const hasActiveFilter = typeFilter !== "all" || statusFilter !== "all" || startDate !== "" || endDate !== "";
 
   const toggleSort = (nextKey: SortKey) => {
     if (sortKey === nextKey) {
@@ -107,6 +148,13 @@ export default function TransactionHistory({
 
     setSortKey(nextKey);
     setSortDirection("desc");
+  };
+
+  const clearFilters = () => {
+    setTypeFilter("all");
+    setStatusFilter("all");
+    setStartDate("");
+    setEndDate("");
   };
 
   return (
@@ -175,16 +223,14 @@ export default function TransactionHistory({
         {hasActiveFilter ? (
           <button
             type="button"
-            onClick={() => {
-              setTypeFilter("all");
-              setStatusFilter("all");
-            }}
-            aria-label="Clear all transaction filters"
-            className="text-xs text-axion-400 transition hover:text-axion-300 focus:outline-none focus:underline"
+            onClick={onClaimRewards}
+            disabled={!isConnected || isClaiming}
+            aria-label={isClaiming ? "Claiming rewards" : "Claim your earned rewards"}
+            className="rounded-xl bg-white/10 px-4 py-2 text-sm font-medium text-text-primary transition hover:bg-white/15 disabled:cursor-not-allowed disabled:opacity-60"
           >
-            Clear filters
+            {isClaiming ? "Claiming..." : "Claim Rewards"}
           </button>
-        ) : null}
+        </div>
       </div>
 
       <div
@@ -213,7 +259,7 @@ export default function TransactionHistory({
               </div>
             </div>
           ) : (
-            filteredTransactions.map((tx) => (
+            sortedTransactions.map((tx) => (
               <div
                 key={tx.id}
                 className="grid grid-cols-[1.2fr_1fr_1fr_0.9fr] items-center gap-3 px-4 py-3 text-sm"
@@ -256,7 +302,7 @@ export default function TransactionHistory({
         </div>
       </div>
 
-      {hasActiveFilter && !isLoading && filteredTransactions.length > 0 ? (
+      {hasActiveFilter && !isLoading ? (
         <div className="mt-3 text-xs text-text-muted">
           Showing {filteredTransactions.length} of {transactions.length}{" "}
           transactions
