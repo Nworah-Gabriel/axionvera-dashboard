@@ -1,10 +1,9 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useForm } from 'react-hook-form';
+import { useEffect } from 'react';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { FormInput } from './FormInput';
-import TransactionSuccess from './TransactionSuccess';
-import { useFormValidation } from '@/hooks/useFormValidation';
-import { depositSchema, DepositFormData } from '@/utils/validation';
+import { createDepositSchema, DepositFormData } from '@/utils/validation';
 import { notify } from '@/utils/notifications';
 import { shortenAddress, type TransactionSimulation } from '@/utils/contractHelpers';
 import { ConfirmTransactionModal } from './ConfirmTransactionModal';
@@ -12,27 +11,31 @@ import { AppTooltip } from './AppTooltip';
 import { GLOSSARY } from '@/utils/glossary';
 import { useState } from "react";
 import ConfirmTransactionModal from '@/components/modals/ConfirmTransactionModal';
+import { FormSkeleton } from './Skeletons';
+import { formatAmount } from '@/utils/contractHelpers';
 
 type DepositFormProps = {
   isConnected: boolean;
   isSubmitting: boolean;
+  isLoading?: boolean;
   onDeposit: (amount: string) => Promise<void>;
   status: "idle" | "pending" | "success" | "error";
   statusMessage?: string | null;
   transactionHash?: string | null;
+  defaultAmount?: string;
   walletBalance?: number | null;
   onSimulate?: (amount: string) => Promise<TransactionSimulation>;
 };
 
-const NETWORK_FEE_RESERVE = 0.1;
-
 export default function DepositForm({
   isConnected,
   isSubmitting,
+  isLoading,
   onDeposit,
   status,
   statusMessage,
   transactionHash,
+  defaultAmount = ""
   walletBalance,
   onSimulate,
 }: DepositFormProps) {
@@ -44,16 +47,19 @@ export default function DepositForm({
   const [simulationData, setSimulationData] = useState<TransactionSimulation | null>(null);
   const [pendingAmount, setPendingAmount] = useState<string>('');
   const [isSimulating, setIsSimulating] = useState(false);
+
   const {
     register,
     handleSubmit,
     reset,
-  } = useFormValidation({
-    schema: depositSchema,
-    initialValues,
-    onSubmit: async (data) => {
-      setDepositAmount(data.amount);
-      await onDeposit(data.amount);
+    setValue,
+    formState: { errors, isValid, isDirty }
+    formState: { errors, isValid, isDirty },
+  } = useForm<DepositFormData>({
+    resolver: zodResolver(createDepositSchema(walletBalance ?? null)),
+    mode: 'onChange',
+    defaultValues: {
+      amount: '' as any,
     },
   });
 
@@ -72,12 +78,13 @@ export default function DepositForm({
     }
   };
   // Show success modal when status changes to success and we have a hash
+  // Set default amount from props when component mounts and wallet is connected
   useEffect(() => {
-    if (status === 'success' && transactionHash) {
-      setShowSuccessModal(true);
-      notify.success("Deposit Successful", `You have deposited ${depositAmount} tokens.`);
+    if (defaultAmount && isConnected) {
+      setValue('amount', defaultAmount as any, { shouldValidate: true, shouldDirty: true });
     }
-  }, [status, transactionHash, depositAmount]);
+  }, [defaultAmount, isConnected, setValue]);
+  if (isLoading) return <FormSkeleton />;
 
   const onSubmit = async (data: DepositFormData) => {
     const amountStr = data.amount.toString();
@@ -143,15 +150,23 @@ export default function DepositForm({
         <div className="text-sm font-semibold text-text-primary">Deposit</div>
         <div className="mt-1 text-xs text-text-muted">Deposit tokens into the Axionvera vault.</div>
 
-        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="mt-5 space-y-4">
+        <form onSubmit={handleSubmit(onSubmit)} className="mt-5 space-y-4">
+          {walletBalance !== null && walletBalance !== undefined && (
+            <div className="flex items-center justify-between text-xs text-text-muted">
+              <span>Wallet Balance</span>
+              <span className="font-medium text-text-primary">{formatAmount(walletBalance.toString())}</span>
+            </div>
+          )}
+
           <FormInput
-            {...amountProps}
+            {...register('amount')}
             id="deposit-amount"
             inputMode="decimal"
             placeholder="0.0"
             label="Amount"
             required
-            helperText="Enter amount between 0.0001 and 10,000"
+            error={errors.amount}
+            helperText={`Enter amount between 0.0001 and ${walletBalance ? formatAmount(walletBalance.toString()) : '10,000'}`}
           />
 
         {status !== 'idle' ? (
@@ -189,51 +204,41 @@ export default function DepositForm({
 
           <button
             type="submit"
-            disabled={!isConnected || shouldDisableSubmit() || isSubmitting}
+            disabled={shouldDisableSubmit}
             aria-label={isSubmitting ? "Submitting deposit" : "Deposit tokens"}
-            className="w-full rounded-xl bg-axion-500 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-axion-500/20 transition hover:bg-axion-400 disabled:cursor-not-allowed disabled:opacity-70"
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-axion-500 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-axion-500/20 transition hover:bg-axion-400 disabled:cursor-not-allowed disabled:opacity-70"
           >
-            {isSubmitting ? "Submitting..." : "Deposit"}
+            {isSubmitting ? (
+              <>
+                <svg
+                  className="h-4 w-4 animate-spin"
+                  xmlns="http://www.w3.org/2000/svg"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  aria-hidden="true"
+                >
+                  <circle
+                    className="opacity-25"
+                    cx="12"
+                    cy="12"
+                    r="10"
+                    stroke="currentColor"
+                    strokeWidth="4"
+                  />
+                  <path
+                    className="opacity-75"
+                    fill="currentColor"
+                    d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+                  />
+                </svg>
+                Depositing...
+              </>
+            ) : (
+              "Deposit"
+            )}
           </button>
         </form>
       </section>
-
-        <button
-          type="submit"
-          disabled={shouldDisableSubmit}
-          aria-label={isSubmitting ? "Submitting deposit" : "Deposit tokens"}
-          className="flex w-full items-center justify-center gap-2 rounded-xl bg-axion-500 px-4 py-3 text-sm font-medium text-white shadow-lg shadow-axion-500/20 transition hover:bg-axion-400 disabled:cursor-not-allowed disabled:opacity-70"
-        >
-          {isSubmitting ? (
-            <>
-              <svg
-                className="h-4 w-4 animate-spin"
-                xmlns="http://www.w3.org/2000/svg"
-                fill="none"
-                viewBox="0 0 24 24"
-                aria-hidden="true"
-              >
-                <circle
-                  className="opacity-25"
-                  cx="12"
-                  cy="12"
-                  r="10"
-                  stroke="currentColor"
-                  strokeWidth="4"
-                />
-                <path
-                  className="opacity-75"
-                  fill="currentColor"
-                  d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
-                />
-              </svg>
-              Depositing...
-            </>
-          ) : (
-            "Deposit"
-          )}
-        </button>
-      </form>
 
       <ConfirmTransactionModal
         isOpen={isModalOpen}
@@ -250,6 +255,6 @@ export default function DepositForm({
         simulation={simulationData}
         isConfirming={isSubmitting}
       />
-    </section>
+    </>
   );
 }
